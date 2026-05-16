@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel Interativo — Bloom | Atrium 2882</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #1A2456;
+    --navy-dark: #0D1530;
+    --navy-mid: #1E2C5E;
+    --gold: #C9A227;
+    --gold-light: #E8C84A;
+    --red: #A51C30;
+    --white: #FFFFFF;
+    --off-white: #F0EDE5;
+    --gray: #8A9BB5;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'EB Garamond', Georgia, serif;
+    background: var(--navy-dark);
+    color: var(--white);
+    min-height: 100vh;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .top-bar {
+    background: var(--gold);
+    height: 5px;
+    width: 100%;
+  }
+
+  header {
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid rgba(201,162,39,0.3);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  header .title-block { flex: 1; }
+  header h1 {
+    font-family: 'Cinzel', serif;
+    font-size: 16px;
+    letter-spacing: 2px;
+    color: var(--gold);
+    font-weight: 700;
+  }
+  header p {
+    font-size: 12px;
+    color: var(--gray);
+    margin-top: 2px;
+    font-style: italic;
+  }
+  .score-badge {
+    background: var(--navy-mid);
+    border: 1px solid var(--gold);
+    border-radius: 8px;
+    padding: 6px 14px;
+    text-align: center;
+    min-width: 80px;
+  }
+  .score-badge .num { font-size: 22px; font-weight: 700; color: var(--gold-light); font-family: 'Cinzel', serif; }
+  .score-badge .label { font-size: 10px; color: var(--gray); }
+
+  .instructions {
+    background: rgba(165, 28, 48, 0.2);
+    border-left: 3px solid var(--red);
+    padding: 10px 16px;
+    font-size: 13px;
+    color: var(--off-white);
+    font-style: italic;
+    line-height: 1.5;
+  }
+  .instructions strong { color: var(--gold-light); font-style: normal; }
+
+  /* MAIN LAYOUT */
+  .main {
+    display: flex;
+    height: calc(100vh - 110px);
+    overflow: hidden;
+  }
+
+  /* LEFT: Card pool */
+  .card-pool {
+    width: 42%;
+    min-width: 260px;
+    border-right: 1px solid rgba(201,162,39,0.2);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .pool-header {
+    padding: 10px 14px;
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--gray);
+    border-bottom: 1px solid rgba(201,162,39,0.15);
+    background: rgba(0,0,0,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .pool-header .remaining {
+    background: var(--red);
+    color: white;
+    border-radius: 10px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-family: 'EB Garamond', serif;
+  }
+  .pool-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .pool-scroll::-webkit-scrollbar { width: 4px; }
+  .pool-scroll::-webkit-scrollbar-track { background: transparent; }
+  .pool-scroll::-webkit-scrollbar-thumb { background: rgba(201,162,39,0.3); border-radius: 2px; }
+
+  .pool-card {
+    background: var(--navy-mid);
+    border: 1px solid rgba(201,162,39,0.3);
+    border-radius: 6px;
+    padding: 12px 14px;
+    cursor: grab;
+    font-size: 13.5px;
+    line-height: 1.45;
+    color: var(--off-white);
+    transition: border-color 0.15s, transform 0.1s, box-shadow 0.15s;
+    position: relative;
+    touch-action: none;
+  }
+  .pool-card:active { cursor: grabbing; }
+  .pool-card:hover {
+    border-color: var(--gold);
+    transform: translateX(3px);
+    box-shadow: -3px 0 0 var(--gold);
+  }
+  .pool-card.dragging {
+    opacity: 0.4;
+    border-color: var(--gold-light);
+  }
+  .pool-card .drag-hint {
+    position: absolute;
+    right: 8px; top: 50%;
+    transform: translateY(-50%);
+    color: rgba(201,162,39,0.4);
+    font-size: 16px;
+  }
+
+  /* RIGHT: Pyramid levels */
+  .pyramid-panel {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .pyramid-panel::-webkit-scrollbar { width: 4px; }
+  .pyramid-panel::-webkit-scrollbar-track { background: transparent; }
+  .pyramid-panel::-webkit-scrollbar-thumb { background: rgba(201,162,39,0.3); border-radius: 2px; }
+
+  .level-zone {
+    border-radius: 6px;
+    border: 1.5px dashed rgba(201,162,39,0.25);
+    overflow: hidden;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    flex-shrink: 0;
+  }
+  .level-zone.drag-over {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 2px rgba(201,162,39,0.2);
+  }
+
+  .level-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    cursor: pointer;
+  }
+  .level-num {
+    font-family: 'Cinzel', serif;
+    font-size: 20px;
+    font-weight: 700;
+    opacity: 0.9;
+    min-width: 26px;
+  }
+  .level-name {
+    font-family: 'Cinzel', serif;
+    font-size: 13px;
+    letter-spacing: 2px;
+    font-weight: 700;
+  }
+  .level-bloom {
+    font-size: 11px;
+    font-style: italic;
+    opacity: 0.75;
+    margin-left: auto;
+  }
+  .level-count {
+    background: rgba(0,0,0,0.3);
+    border-radius: 10px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-family: sans-serif;
+    color: rgba(255,255,255,0.7);
+  }
+
+  .level-drop-area {
+    min-height: 40px;
+    padding: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .level-drop-area.empty {
+    align-items: center;
+    justify-content: center;
+  }
+  .drop-placeholder {
+    width: 100%;
+    text-align: center;
+    font-size: 12px;
+    color: rgba(201,162,39,0.35);
+    font-style: italic;
+    padding: 4px 0;
+  }
+
+  .placed-card {
+    background: rgba(0,0,0,0.35);
+    border-radius: 5px;
+    padding: 7px 10px;
+    font-size: 12px;
+    line-height: 1.35;
+    color: var(--off-white);
+    cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.1);
+    position: relative;
+    max-width: 100%;
+    transition: background 0.15s;
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .placed-card:hover { background: rgba(0,0,0,0.5); }
+  .placed-card .remove-btn {
+    font-size: 14px;
+    color: rgba(255,255,255,0.3);
+    cursor: pointer;
+    flex-shrink: 0;
+    line-height: 1;
+    margin-top: 1px;
+    transition: color 0.1s;
+  }
+  .placed-card .remove-btn:hover { color: var(--red); }
+  .placed-card.correct { border-color: rgba(46,204,113,0.5); }
+  .placed-card.wrong { border-color: rgba(231,76,60,0.5); }
+
+  /* Level colors */
+  .lv1 .level-header { background: #0A2840; }
+  .lv2 .level-header { background: #103F6A; }
+  .lv3 .level-header { background: #14527A; }
+  .lv4 .level-header { background: #7A5308; }
+  .lv5 .level-header { background: #923D1E; }
+  .lv6 .level-header { background: #7B1111; }
+  .lv1 { border-color: rgba(10,40,64,0.6); }
+  .lv2 { border-color: rgba(16,63,106,0.6); }
+  .lv3 { border-color: rgba(20,82,122,0.6); }
+  .lv4 { border-color: rgba(122,83,8,0.6); }
+  .lv5 { border-color: rgba(146,61,30,0.6); }
+  .lv6 { border-color: rgba(123,17,17,0.6); }
+  .lv1 .level-drop-area { background: rgba(10,40,64,0.2); }
+  .lv2 .level-drop-area { background: rgba(16,63,106,0.2); }
+  .lv3 .level-drop-area { background: rgba(20,82,122,0.2); }
+  .lv4 .level-drop-area { background: rgba(122,83,8,0.2); }
+  .lv5 .level-drop-area { background: rgba(146,61,30,0.2); }
+  .lv6 .level-drop-area { background: rgba(123,17,17,0.2); }
+
+  /* FOOTER */
+  .footer-actions {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--navy-dark);
+    border-top: 1px solid rgba(201,162,39,0.3);
+    padding: 10px 16px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .btn {
+    padding: 8px 18px;
+    border-radius: 5px;
+    font-family: 'Cinzel', serif;
+    font-size: 12px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+  }
+  .btn-gold {
+    background: var(--gold);
+    color: var(--navy-dark);
+  }
+  .btn-gold:hover { background: var(--gold-light); }
+  .btn-outline {
+    background: transparent;
+    border: 1px solid var(--gold);
+    color: var(--gold);
+  }
+  .btn-outline:hover { background: rgba(201,162,39,0.1); }
+  .btn-danger {
+    background: transparent;
+    border: 1px solid var(--red);
+    color: #e88;
+    margin-left: auto;
+  }
+  .btn-danger:hover { background: rgba(165,28,48,0.2); }
+
+  /* RESULT MODAL */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.visible { display: flex; }
+  .modal {
+    background: var(--navy-mid);
+    border: 2px solid var(--gold);
+    border-radius: 10px;
+    padding: 28px;
+    max-width: 480px;
+    width: 100%;
+    text-align: center;
+  }
+  .modal h2 {
+    font-family: 'Cinzel', serif;
+    font-size: 20px;
+    color: var(--gold);
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+  }
+  .modal .big-score {
+    font-size: 56px;
+    font-family: 'Cinzel', serif;
+    color: var(--gold-light);
+    font-weight: 700;
+    line-height: 1;
+    margin: 12px 0;
+  }
+  .modal p { font-size: 15px; color: var(--off-white); line-height: 1.6; }
+  .modal .debate-q {
+    background: rgba(165,28,48,0.2);
+    border-left: 3px solid var(--red);
+    padding: 12px 16px;
+    text-align: left;
+    margin: 16px 0;
+    font-style: italic;
+    font-size: 14px;
+    color: var(--off-white);
+    border-radius: 0 5px 5px 0;
+  }
+  .modal-btns { display: flex; gap: 10px; justify-content: center; margin-top: 16px; }
+
+  /* GHOST drag image */
+  .drag-ghost {
+    position: fixed;
+    pointer-events: none;
+    z-index: 999;
+    background: var(--navy-mid);
+    border: 2px solid var(--gold);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--off-white);
+    max-width: 220px;
+    font-family: 'EB Garamond', serif;
+    opacity: 0;
+    transition: opacity 0.1s;
+    line-height: 1.4;
+  }
+  .drag-ghost.visible { opacity: 0.92; }
+
+  @media (max-width: 600px) {
+    .main { flex-direction: column; height: auto; }
+    .card-pool { width: 100%; min-width: unset; border-right: none; border-bottom: 1px solid rgba(201,162,39,0.2); max-height: 45vh; }
+    .pyramid-panel { max-height: 55vh; }
+    .level-bloom { display: none; }
+    body { padding-bottom: 60px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="top-bar"></div>
+
+<header>
+  <div class="title-block">
+    <h1>PAINEL DOS DEGRAUS</h1>
+    <p>Arraste cada cartão para o nível de Bloom correspondente</p>
+  </div>
+  <div class="score-badge">
+    <div class="num" id="score-num">—</div>
+    <div class="label">acertos</div>
+  </div>
+</header>
+
+<div class="instructions">
+  <strong>Como jogar:</strong> Arraste cada cartão da esquerda para o nível correto da pirâmide à direita. Toque no cartão colocado para devolvê-lo ao banco. Clique em <strong>Verificar</strong> para ver o resultado.
+</div>
+
+<div class="main">
+  <div class="card-pool">
+    <div class="pool-header">
+      BANCO DE CARTÕES
+      <span class="remaining" id="remaining-count">24 restantes</span>
+    </div>
+    <div class="pool-scroll" id="pool-area"></div>
+  </div>
+
+  <div class="pyramid-panel" id="pyramid-panel"></div>
+</div>
+
+<div class="footer-actions">
+  <button class="btn btn-gold" onclick="checkAnswers()">Verificar Gabarito</button>
+  <button class="btn btn-outline" onclick="shufflePool()">Embaralhar</button>
+  <button class="btn btn-danger" onclick="resetAll()">Reiniciar</button>
+</div>
+
+<!-- Drag ghost -->
+<div class="drag-ghost" id="drag-ghost"></div>
+
+<!-- Result modal -->
+<div class="modal-overlay" id="modal" onclick="closeModal(event)">
+  <div class="modal">
+    <h2>RESULTADO</h2>
+    <div class="big-score" id="modal-score">0/24</div>
+    <p id="modal-msg"></p>
+    <div class="debate-q">
+      "Meus Irmãos: temos criado espaço para que os obreiros subam até o topo da pirâmide (Avaliar / Criar), ou temos limitado nossa régua e compasso apenas aos degraus da base (Lembrar / Entender)?"
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-outline" onclick="closeModal()">Fechar</button>
+      <button class="btn btn-gold" onclick="resetAll(); closeModal()">Jogar Novamente</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const LEVELS = [
+  { id: 1, name: "LEMBRAR",    bloom: "Reter fatos · Memorizar",                     cls: "lv1" },
+  { id: 2, name: "ENTENDER",   bloom: "Compreender o significado",                   cls: "lv2" },
+  { id: 3, name: "APLICAR",    bloom: "Usar o conhecimento em situações novas",      cls: "lv3" },
+  { id: 4, name: "ANALISAR",   bloom: "Conectar ideias · Ver a estrutura do todo",   cls: "lv4" },
+  { id: 5, name: "AVALIAR",    bloom: "Julgar com base em critérios e valores",      cls: "lv5" },
+  { id: 6, name: "CRIAR",      bloom: "Produzir algo novo · Lecionar · Liderar",     cls: "lv6" },
+];
+
+const CARDS = [
+  { id: "c1",  level: 1, text: "Memorização das Lectures do Ritual de Emulação" },
+  { id: "c2",  level: 1, text: "Execução mecânica de Sinais de Ordem e Saudações ritualísticas" },
+  { id: "c3",  level: 1, text: "Leitura literal da Constituição e do RGF do GOB" },
+  { id: "c4",  level: 1, text: "Abertura e Fechamento da Loja feitos totalmente de memória" },
+  { id: "c5",  level: 2, text: "Explicar o significado moral e filosófico dos Símbolos Maçônicos" },
+  { id: "c6",  level: 2, text: "Compreender os deveres de silêncio e introspecção do Aprendiz" },
+  { id: "c7",  level: 2, text: "Interpretar a filosofia da solidariedade por trás do Tronco de Beneficência" },
+  { id: "c8",  level: 2, text: "Compreender a função histórica e de segurança da Palavra de Semestre" },
+  { id: "c9",  level: 3, text: "Praticar a tolerância e a civilidade na sociedade profana" },
+  { id: "c10", level: 3, text: "Atuar com postura correta no cargo de Oficial em Loja (ex: Diácono ou Guarda)" },
+  { id: "c11", level: 3, text: "Cumprir com o pagamento das Captações e Emolumentos do GOB" },
+  { id: "c12", level: 3, text: "Prestar auxílio prático a um Irmão em necessidade" },
+  { id: "c13", level: 4, text: "Correlacionar a jornada do Aprendiz, Companheiro e Mestre" },
+  { id: "c14", level: 4, text: "Identificar e pontuar desvios ritualísticos durante os trabalhos no Emulação" },
+  { id: "c15", level: 4, text: "Estudar o impacto e a influência histórica do GOB nos eventos políticos do Brasil" },
+  { id: "c16", level: 4, text: "Diferenciar as características e sutilezas do Ritual de Emulação em relação a outros Ritos" },
+  { id: "c17", level: 5, text: "Votação e julgamento de relatórios de Sindicância para admissão de profanos" },
+  { id: "c18", level: 5, text: "Atuação jurídica e conciliação em litígios no Conselho de Família da Loja" },
+  { id: "c19", level: 5, text: "Emitir parecer técnico e votar as contas na Comissão de Finanças" },
+  { id: "c20", level: 5, text: "Exercício do Malhete pelo Venerável Mestre para manter harmonia nos debates" },
+  { id: "c21", level: 6, text: "Redigir e apresentar uma Peça de Arquitetura original e inédita" },
+  { id: "c22", level: 6, text: "Desenvolver metodologia própria para Instruções aos Aprendizes" },
+  { id: "c23", level: 6, text: "Idealizar e liderar a fundação de uma nova Oficina ou Triângulo regular" },
+  { id: "c24", level: 6, text: "Propor e coordenar projeto inédito de ação social da Loja na comunidade" },
+];
+
+// State
+let placements = {}; // cardId -> levelId
+let shuffledCards = [...CARDS];
+
+// Drag state
+let dragCardId = null;
+let dragGhost = document.getElementById('drag-ghost');
+let dragOffset = { x: 0, y: 0 };
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function shufflePool() {
+  shuffledCards = shuffle([...shuffledCards]);
+  render();
+}
+
+function getCardById(id) { return CARDS.find(c => c.id === id); }
+
+function getPlacedCards(levelId) {
+  return Object.entries(placements)
+    .filter(([cid, lvl]) => lvl === levelId)
+    .map(([cid]) => getCardById(cid));
+}
+
+function getUnplacedCards() {
+  return shuffledCards.filter(c => !(c.id in placements));
+}
+
+function render() {
+  renderPool();
+  renderPyramid();
+  updateRemaining();
+}
+
+function renderPool() {
+  const pool = document.getElementById('pool-area');
+  const unplaced = getUnplacedCards();
+  pool.innerHTML = '';
+  if (unplaced.length === 0) {
+    pool.innerHTML = '<div style="text-align:center;color:rgba(201,162,39,0.5);font-style:italic;padding:20px;font-size:14px;">Todos os cartões foram posicionados!</div>';
+    return;
+  }
+  unplaced.forEach(card => {
+    const el = document.createElement('div');
+    el.className = 'pool-card';
+    el.dataset.id = card.id;
+    el.innerHTML = card.text + '<span class="drag-hint">⠿</span>';
+    addDragListeners(el, card.id);
+    pool.appendChild(el);
+  });
+}
+
+function renderPyramid() {
+  const panel = document.getElementById('pyramid-panel');
+  panel.innerHTML = '';
+  LEVELS.forEach(lv => {
+    const placed = getPlacedCards(lv.id);
+    const zone = document.createElement('div');
+    zone.className = `level-zone ${lv.cls}`;
+    zone.dataset.level = lv.id;
+
+    zone.innerHTML = `
+      <div class="level-header">
+        <span class="level-num">${lv.id}</span>
+        <span class="level-name">${lv.name}</span>
+        <span class="level-bloom">${lv.bloom}</span>
+        <span class="level-count">${placed.length}</span>
+      </div>
+      <div class="level-drop-area ${placed.length === 0 ? 'empty' : ''}" data-level="${lv.id}">
+        ${placed.length === 0 ? '<div class="drop-placeholder">Arraste cartões aqui…</div>' : ''}
+        ${placed.map(c => `
+          <div class="placed-card" data-id="${c.id}" onclick="returnCard('${c.id}')">
+            <span class="remove-btn" title="Devolver ao banco">✕</span>
+            <span>${c.text}</span>
+          </div>
+        `).join('')}
+      </div>`;
+
+    // Drop events
+    const dropArea = zone.querySelector('.level-drop-area');
+    dropArea.addEventListener('dragover', e => {
+      e.preventDefault();
+      zone.classList.add('drag-over');
+    });
+    dropArea.addEventListener('dragleave', e => {
+      if (!zone.contains(e.relatedTarget)) zone.classList.remove('drag-over');
+    });
+    dropArea.addEventListener('drop', e => {
+      e.preventDefault();
+      zone.classList.remove('drag-over');
+      if (dragCardId) {
+        placements[dragCardId] = lv.id;
+        dragCardId = null;
+        render();
+      }
+    });
+
+    // Touch drop target
+    zone.dataset.touchTarget = lv.id;
+
+    panel.appendChild(zone);
+  });
+}
+
+function updateRemaining() {
+  const count = getUnplacedCards().length;
+  document.getElementById('remaining-count').textContent = count + ' restantes';
+}
+
+function returnCard(cardId) {
+  delete placements[cardId];
+  render();
+}
+
+function addDragListeners(el, cardId) {
+  // Mouse drag
+  el.draggable = true;
+  el.addEventListener('dragstart', e => {
+    dragCardId = cardId;
+    el.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setDragImage(new Image(), 0, 0);
+  });
+  el.addEventListener('dragend', () => {
+    el.classList.remove('dragging');
+    dragGhost.classList.remove('visible');
+  });
+
+  // Touch drag
+  let touchStartY = 0, touchStartX = 0;
+  el.addEventListener('touchstart', e => {
+    const touch = e.touches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+    dragCardId = cardId;
+    dragGhost.textContent = getCardById(cardId).text;
+    dragGhost.style.left = touch.clientX - 110 + 'px';
+    dragGhost.style.top = touch.clientY - 40 + 'px';
+    dragGhost.classList.add('visible');
+  }, { passive: true });
+
+  el.addEventListener('touchmove', e => {
+    const touch = e.touches[0];
+    dragGhost.style.left = touch.clientX - 110 + 'px';
+    dragGhost.style.top = touch.clientY - 40 + 'px';
+    e.preventDefault();
+  }, { passive: false });
+
+  el.addEventListener('touchend', e => {
+    dragGhost.classList.remove('visible');
+    const touch = e.changedTouches[0];
+    const el2 = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (el2) {
+      let zone = el2.closest('.level-zone');
+      if (zone) {
+        const lvId = parseInt(zone.dataset.level);
+        placements[cardId] = lvId;
+      }
+    }
+    dragCardId = null;
+    render();
+  });
+}
+
+// Document-level drag ghost follow
+document.addEventListener('dragover', e => {
+  e.preventDefault();
+  if (dragCardId) {
+    const card = getCardById(dragCardId);
+    dragGhost.textContent = card.text;
+    dragGhost.style.left = e.clientX - 110 + 'px';
+    dragGhost.style.top = e.clientY - 40 + 'px';
+    dragGhost.classList.add('visible');
+  }
+});
+document.addEventListener('dragleave', e => {
+  if (!e.relatedTarget) dragGhost.classList.remove('visible');
+});
+document.addEventListener('drop', e => {
+  dragGhost.classList.remove('visible');
+});
+
+function checkAnswers() {
+  let correct = 0;
+  const placed = Object.entries(placements);
+  placed.forEach(([cid, lvl]) => {
+    const card = getCardById(cid);
+    if (card.level === lvl) correct++;
+  });
+  const total = CARDS.length;
+  const pct = Math.round((correct / total) * 100);
+
+  document.getElementById('modal-score').textContent = correct + '/' + total;
+
+  let msg = '';
+  if (pct === 100) msg = 'Perfeito! Você atingiu o topo da pirâmide!';
+  else if (pct >= 75) msg = 'Excelente! Você demonstra um sólido amadurecimento cognitivo.';
+  else if (pct >= 50) msg = 'Bom progresso. Ainda há degraus a subir!';
+  else msg = 'A Pedra Bruta ainda precisa de lapidação. Continue estudando!';
+  document.getElementById('modal-msg').textContent = msg;
+  document.getElementById('score-num').textContent = correct + '/' + total;
+
+  // Highlight correct/wrong on placed cards
+  document.querySelectorAll('.placed-card').forEach(el => {
+    const cid = el.dataset.id;
+    const card = getCardById(cid);
+    const lvl = placements[cid];
+    el.classList.remove('correct', 'wrong');
+    el.classList.add(card.level === lvl ? 'correct' : 'wrong');
+  });
+
+  document.getElementById('modal').classList.add('visible');
+}
+
+function closeModal(e) {
+  if (!e || e.target.id === 'modal') {
+    document.getElementById('modal').classList.remove('visible');
+  }
+}
+
+function resetAll() {
+  placements = {};
+  shuffledCards = shuffle([...CARDS]);
+  document.getElementById('score-num').textContent = '—';
+  render();
+}
+
+// Init
+shuffle(shuffledCards);
+render();
+</script>
+</body>
+</html>
